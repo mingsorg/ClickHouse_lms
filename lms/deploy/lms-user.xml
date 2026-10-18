@@ -1,0 +1,13 @@
+<clickhouse>
+    <users>
+        <lms>
+            <password from_env="CLICKHOUSE_PASSWORD"/>
+            <networks><ip>::/0</ip></networks>
+            <profile>default</profile>
+            <quota>default</quota>
+            <grants>
+                <query>GRANT SELECT, INSERT ON lms.logs</query>
+            </grants>
+        </lms>
+    </users>
+</clickhouse>
