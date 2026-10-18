@@ -1,0 +1,31 @@
+<clickhouse>
+    <users>
+        <lms>
+            <password from_env="CLICKHOUSE_PASSWORD"/>
+            <networks><ip>::/0</ip></networks>
+            <profile>default</profile>
+            <quota>default</quota>
+            <grants>
+                <query>GRANT SELECT, INSERT ON lms.logs</query>
+            </grants>
+        </lms>
+        <lms_observer>
+            <password from_env="CLICKHOUSE_PASSWORD"/>
+            <networks><ip>::/0</ip></networks>
+            <profile>lms_observer</profile>
+            <quota>default</quota>
+            <grants>
+                <query>GRANT SHOW TABLES ON lms.*</query>
+                <query>GRANT SELECT ON system.tables</query>
+                <query>GRANT SELECT ON system.disks</query>
+                <query>GRANT SELECT ON system.parts</query>
+                <query>GRANT SELECT ON system.replicas</query>
+                <query>GRANT SELECT ON system.merges</query>
+                <query>GRANT SELECT ON system.mutations</query>
+            </grants>
+        </lms_observer>
+    </users>
+    <profiles>
+        <lms_observer><readonly>1</readonly><max_execution_time>3</max_execution_time><max_threads>1</max_threads></lms_observer>
+    </profiles>
+</clickhouse>

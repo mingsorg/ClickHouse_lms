@@ -1,0 +1,41 @@
+services:
+  clickhouse:
+    image: clickhouse/clickhouse-server:26.9.21.9
+    environment:
+      CLICKHOUSE_USER: admin
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:?set CLICKHOUSE_PASSWORD in .env}
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: "1"
+    volumes:
+      - lms-data:/var/lib/clickhouse
+      - ./deploy/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./deploy/lms-user.xml:/etc/clickhouse-server/users.d/lms.xml:ro
+    ports:
+      - "127.0.0.1:18123:8123"
+    mem_limit: 4g
+    healthcheck:
+      test: ["CMD-SHELL", "clickhouse-client --user admin --password \"$$CLICKHOUSE_PASSWORD\" --query 'SELECT 1 FROM lms.logs LIMIT 0' >/dev/null"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+  logd:
+    build: .
+    environment:
+      LMS_LISTEN: ":8080"
+      CLICKHOUSE_URL: http://clickhouse:8123
+      CLICKHOUSE_USER: lms
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:?set CLICKHOUSE_PASSWORD}
+      LMS_TOKENS: ${LMS_TOKENS:?set LMS_TOKENS}
+      LMS_CURSOR_KEY: ${LMS_CURSOR_KEY:?set LMS_CURSOR_KEY}
+      GOMEMLIMIT: 384MiB
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:18080:8080"
+    mem_limit: 512m
+    read_only: true
+    cap_drop: [ALL]
+    volumes:
+      - ./deploy/doctor.json:/etc/lms/doctor.json:ro
+volumes:
+  lms-data:
