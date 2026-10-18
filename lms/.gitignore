@@ -3,3 +3,4 @@
 !.env.example
 /build/
 /tmp/
+__pycache__/

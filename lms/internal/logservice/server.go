@@ -35,6 +35,9 @@ func NewServer(ctx context.Context, store Store, tokens map[string]Grant, key []
 		if len(token) < 16 || g.Tenant == "" || len(g.Datasets) == 0 {
 			return nil, errors.New("each token needs at least 16 bytes, a tenant and datasets")
 		}
+		if g.RawMode != "" && g.RawMode != "event" && g.RawMode != "lines" {
+			return nil, errors.New("raw_mode must be event or lines")
+		}
 		for _, d := range g.Datasets {
 			if d == "" || len(d) > 128 || strings.ContainsAny(d, "/\\\n\r") {
 				return nil, errors.New("invalid dataset")
@@ -55,7 +58,7 @@ func NewServer(ctx context.Context, store Store, tokens map[string]Grant, key []
 	s.mux.HandleFunc("POST /v1/logs", s.protect("Bearer", false, s.native))
 	s.mux.HandleFunc("POST /services/collector", s.protect("Splunk", false, s.hec))
 	s.mux.HandleFunc("POST /services/collector/event", s.protect("Splunk", false, s.hec))
-	s.mux.HandleFunc("POST /services/collector/raw", s.protect("Splunk", false, func(w http.ResponseWriter, r *http.Request, g Grant) { fail(w, 501, "HEC raw is not supported") }))
+	s.mux.HandleFunc("POST /services/collector/raw", s.protect("Splunk", false, s.hecRaw))
 	s.mux.HandleFunc("POST /services/collector/ack", s.protect("Splunk", false, func(w http.ResponseWriter, r *http.Request, g Grant) { fail(w, 501, "HEC ACK is not supported") }))
 	s.mux.HandleFunc("POST /_bulk", s.protect("ApiKey", false, s.bulk))
 	s.mux.HandleFunc("POST /{dataset}/_bulk", s.protect("ApiKey", false, s.bulk))

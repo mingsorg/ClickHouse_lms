@@ -28,7 +28,7 @@ The first live runs failed at query timestamp conversion and alias substitution.
 - Replication, disk/host loss, backup/restore: NOT RUN. Graceful database process stop/start is not proof of these stronger guarantees.
 - Actual Splunk/Elastic agent interoperability: NOT RUN.
 - The development data and generated credentials are synthetic/local, respectively; credentials stay in ignored `.env`.
-- Full protocol compatibility, HEC raw/ACK, Bulk overwrite/create semantics, aggregations, text-index acceleration and a `Native` transport are deferred.
+- Full protocol compatibility, HEC ACK, Bulk overwrite/create semantics, aggregations, text-index acceleration and a `Native` transport are deferred.
 - Writes use at-least-once delivery. Timeouts may have committed data; retries can duplicate events. No exactly-once or unconditional power-loss durability claim.
 - Retention is ten days from receipt with asynchronous `TTL` cleanup; ten days of actual data/retention behavior has not been exercised.
 
@@ -40,3 +40,13 @@ User instruction: accept and ignore action metadata `_id`; each `index` action a
 - PASS: real ClickHouse live checks (`test_bulk_ignore_id_live_2026-10-18.log`, exit 0). Two `index` actions with the same external ID returned distinct generated IDs and both remained queryable; the unsupported `update` item failed individually. Pagination retrieved all five accepted events without duplicate IDs.
 
 The original explicit-ID rejection above is superseded by this policy. No new throughput, latency or HA claim.
+
+## Phase 2: raw input, read-only operations and synthetic measurement
+
+- PASS: fresh Go race/contract run (`test_phase2_contract_2026-10-18.log`), doctor 2.846s and log service 3.516s; vet had no diagnostics.
+- PASS: gzip raw multiline event preserved through actual storage; all six accepted events from all input paths retrieved with correct pagination, timestamps, isolation and Bulk ID behavior (`test_phase2_live_2026-10-18.log`).
+- PASS: real metadata-only doctor observations and observer ACL denial of business-row reads and zero-row writes (`test_phase2_doctor_acl_2026-10-18.log`). Single-node storage remains WARN; production acceptance NOT RUN. Partial-node and missing-evidence failures are covered by contract tests.
+- PASS: benchmark accounting tests, two tests (`test_phase2_benchmark_accounting_verified_2026-10-18.log`).
+- FAIL: all six offered-load smoke runs included rejected or client-shed work. [BENCHMARK.zh.md](BENCHMARK.zh.md) records every run, including failed results; these are short synthetic tests, not engine causal comparisons or production acceptance.
+
+Raw mode now exists as a documented subset; HEC ACK and actual agent interoperability remain deferred. The doctor is read-only and does not perform repairs, upgrades or backup/restore. C++ engine modification, replicated recovery and the original 100TB/day/ten-day/100QPS/<100ms target remain NOT RUN.

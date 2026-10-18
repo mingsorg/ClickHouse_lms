@@ -19,6 +19,7 @@ const maxEvents = 4096
 type Grant struct {
 	Tenant   string   `json:"tenant"`
 	Datasets []string `json:"datasets"`
+	RawMode  string   `json:"raw_mode,omitempty"`
 }
 
 func (g Grant) Allows(dataset string) bool {

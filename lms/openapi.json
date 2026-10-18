@@ -2,7 +2,7 @@
   "openapi": "3.0.3",
   "info": {
     "title": "LMS append-only log API",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "description": "Correctness baseline. Not full Splunk/Elasticsearch compatibility. At-least-once delivery; no exactly-once or production capacity guarantee. Wire and decoded request limits: 4 MiB."
   },
   "servers": [
@@ -399,18 +399,107 @@
     },
     "/services/collector/raw": {
       "post": {
-        "summary": "Explicitly unsupported in this slice",
+        "summary": "Append raw UTF-8 log text; token controls whole-request or line mode",
         "security": [
           {
             "hec": []
           }
         ],
         "responses": {
-          "501": {
-            "description": "Not implemented"
+          "200": {
+            "description": "Storage-confirmed success"
+          },
+          "400": {
+            "description": "Invalid metadata, text or dataset"
           },
           "401": {
             "description": "Authentication required"
+          },
+          "413": {
+            "description": "Body or event limit exceeded"
+          },
+          "429": {
+            "description": "Admission limit"
+          },
+          "503": {
+            "description": "Storage not confirmed"
+          }
+        },
+        "description": "Default: one request is one event, preserving multiline bodies. raw_mode=lines is credential configuration, not a client parameter. Optional channel is validated but does not enable ACK. Requests are validated before any write.",
+        "parameters": [
+          {
+            "name": "index",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Authorized logical dataset"
+          },
+          {
+            "name": "host",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Host metadata"
+          },
+          {
+            "name": "source",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Source identifier"
+          },
+          {
+            "name": "sourcetype",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Preserved source_type attribute"
+          },
+          {
+            "name": "time",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Epoch seconds applied to this request"
+          },
+          {
+            "name": "channel",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "GUID; optional when ACK is disabled"
+          },
+          {
+            "name": "X-Splunk-Request-Channel",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Optional GUID; must agree with channel query parameter if both present"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "text/plain": {
+              "schema": {
+                "type": "string",
+                "description": "UTF-8 text, gzip allowed; 64 KiB per event, 4 MiB per request"
+              }
+            }
           }
         }
       }

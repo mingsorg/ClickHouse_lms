@@ -79,7 +79,15 @@ The whole native request is validated before any write. A successful response re
 - Gzip is supported. Any validation error rejects the entire bounded request, unlike HEC configurations that may process a prefix.
 - Success returns `{"text":"Success","code":0}` only after the storage insert completes.
 
-`/services/collector/raw`, `/services/collector/ack`, channels, token management and Splunk search/SPL are unsupported. Channel-bearing event requests are explicitly rejected. Error envelopes are the service's JSON error format, not a complete reproduction of HEC error codes. This is an input subset, not full Splunk compatibility. Actual agent interoperability is still a separate test.
+`/services/collector/ack`, token management and Splunk search/SPL are unsupported. Channel-bearing event requests are explicitly rejected. Error envelopes are the service's JSON error format, not a complete reproduction of HEC error codes. This is an input subset, not full Splunk compatibility. Actual agent interoperability is still a separate test.
+
+## HEC raw text
+
+`POST /services/collector/raw` accepts UTF-8 text (including gzip) and optional `index`, `host`, `source`, `sourcetype`, `time` and `channel` query parameters. Unknown/duplicate parameters, invalid times, invalid encoding and unauthorized datasets fail before any write. If a channel is supplied as a GUID header or parameter, it is validated; conflicting values fail. Channel acceptance does not enable ACK or persist a channel session.
+
+The default is **one request = one event**, preserving every newline in a stack trace. Configure `raw_mode: "lines"` on a credential grant only when its producer sends one event per line. Line mode recognizes LF/CRLF, skips empty lines, accepts a final line without LF, and validates the complete request before inserting. It does not infer multiline stack boundaries or assemble events across requests. Event payloads remain capped at 64 KiB and batches at 4096 events. This is a documented HEC subset rather than Splunk's configurable event-breaking pipeline.
+
+The `time` parameter applies one epoch timestamp to all events in that request; when absent, receipt time is used. Raw body text is not automatically parsed for a timestamp. HEC ACK remains explicitly unsupported, and success waits for the same storage confirmation as other inputs.
 
 ## Elasticsearch Bulk subset
 
@@ -122,7 +130,7 @@ SQL values are parameterized. Queries have fixed memory, thread, scan and execut
 
 At most eight ingestion requests and four queries are admitted per process. Request wire and decoded bodies are each limited to 4 MiB, with up to 4096 events, 64 KiB message/attribute payloads and bounded nesting. Batches coalesce for at most 5ms or eight requests, then sort by the complete storage key `(tenant_id, dataset, service, event_time, event_id)` before one synchronous insert. This reduces small-part pressure; throughput and memory overhead are not yet measured. There is no global reorder wait or per-source unbounded buffer.
 
-ClickHouse already detects sorted blocks; pre-sorting here is an experiment whose complete CPU cost must be compared with sorting in ClickHouse. Standard background merges remain enabled. There is no custom merge scheduler, closed-window merge policy or compressed-block reuse patch in this version.
+ClickHouse already detects sorted blocks; pre-sorting here is an experiment whose complete CPU cost must be compared with sorting in ClickHouse. Standard background merges remain enabled. There is no custom merge scheduler, closed-window merge policy or compressed-block reuse patch in this version. Read-only operations and a bounded synthetic benchmark are described in [OPERATIONS.md](OPERATIONS.md).
 
 The service is **at least once**, not exactly once. Cancellation after enqueue does not roll back a write. Client retries can duplicate events, including after a response was lost. No request IDs are claimed as persistent deduplication keys. Inserts are synchronous (`async_insert=0`) at the storage boundary; acknowledgment does not promise multi-replica durability or power-loss protection. Those require explicit configuration and fault tests. Gateway process shutdown drains active HTTP requests up to its deadline.
 

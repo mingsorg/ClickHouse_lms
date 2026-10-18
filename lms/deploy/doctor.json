@@ -1,0 +1,11 @@
+{
+  "nodes": [
+    {
+      "name": "local-development",
+      "url": "http://clickhouse:8123",
+      "user": "lms_observer",
+      "password_env": "CLICKHOUSE_PASSWORD",
+      "expected_replicas": 1
+    }
+  ]
+}

@@ -35,5 +35,7 @@ services:
     mem_limit: 512m
     read_only: true
     cap_drop: [ALL]
+    volumes:
+      - ./deploy/doctor.json:/etc/lms/doctor.json:ro
 volumes:
   lms-data:

@@ -89,7 +89,7 @@ func TestIngestionAndIsolation(t *testing.T) {
 		{"/v1/logs", "Bearer", `{"dataset":"logs","events":[{"message":"no","@timestamp":"yesterday"}]}`, 400},
 		{"/v1/logs", "Bearer", `{"dataset":"logs","events":[{"message":"no"}],"unknown":1}`, 400},
 		{"/services/collector/event", "Splunk", `{"event":"would-be-valid"}{"event":7}`, 400},
-		{"/services/collector/raw", "Splunk", "raw", 501},
+		{"/services/collector/raw?unsupported=1", "Splunk", "raw", 400},
 		{"/services/collector/ack", "Splunk", `{"acks":[1]}`, 501},
 		{"/v1/logs", "Splunk", `{}`, 401},
 	} {
