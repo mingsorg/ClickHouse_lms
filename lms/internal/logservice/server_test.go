@@ -146,6 +146,47 @@ func TestBulkPartialFailureAndFraming(t *testing.T) {
 	}
 }
 
+func TestBulkIgnoresExternalIDWithoutOverwriting(t *testing.T) {
+	s, m := app(t)
+	ids := make(map[string]bool)
+	for _, path := range []string{"/_bulk", "/logs/_bulk"} {
+		body := "{\"index\":{\"_index\":\"logs\",\"_id\":\"repeated-id\"}}\n{\"message\":\"first\"}\n{\"index\":{\"_index\":\"logs\",\"_id\":\"repeated-id\"}}\n{\"message\":\"second\"}\n"
+		w := request(s, path, "ApiKey", body)
+		var out struct {
+			Errors bool                    `json:"errors"`
+			Items  []map[string]bulkResult `json:"items"`
+		}
+		if err := json.Unmarshal(w.Body.Bytes(), &out); err != nil {
+			t.Fatal(err)
+		}
+		if w.Code != 200 || out.Errors || len(out.Items) != 2 {
+			t.Fatal(w.Body.String())
+		}
+		for _, item := range out.Items {
+			v := item["index"]
+			if v.Status != 201 || v.ID == "" || v.ID == "repeated-id" || ids[v.ID] {
+				t.Fatalf("expected fresh server ID: %#v", v)
+			}
+			ids[v.ID] = true
+		}
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if len(m.rows) != 4 {
+		t.Fatalf("repeated external IDs must append four rows, got %d", len(m.rows))
+	}
+	counts := map[string]int{}
+	for _, row := range m.rows {
+		if !ids[row.EventID] || strings.Contains(row.Attributes, "repeated-id") {
+			t.Fatal("external ID was retained or substituted for generated ID")
+		}
+		counts[row.Message]++
+	}
+	if counts["first"] != 2 || counts["second"] != 2 {
+		t.Fatalf("events overwritten: %#v", counts)
+	}
+}
+
 func TestBackendFailureNeverAcknowledged(t *testing.T) {
 	s, m := app(t)
 	m.fail = true

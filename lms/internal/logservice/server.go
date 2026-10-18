@@ -357,13 +357,14 @@ func (s *Server) bulk(w http.ResponseWriter, r *http.Request, g Grant) {
 		items = append(items, map[string]bulkResult{})
 		itemErr := ""
 		if op != "index" {
-			itemErr = "only append-only index without _id is supported"
+			itemErr = "only append-only index is supported"
 		}
 		for k := range meta {
-			if k != "_index" {
-				itemErr = "unsupported action metadata; _id and overwrite are not supported"
+			if k != "_index" && k != "_id" {
+				itemErr = "unsupported action metadata"
 			}
 		}
+		// Ignore the caller's _id; every index action appends a fresh event.
 		if itemErr != "" {
 			items[pos][op] = bulkError(dataset, 400, itemErr)
 			continue

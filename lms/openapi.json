@@ -214,7 +214,7 @@
             "application/x-ndjson": {
               "schema": {
                 "type": "string",
-                "description": "NDJSON with final newline. Only index without _id; items may fail inside HTTP 200. Maximum 4096 actions. Default dataset is first credential grant when path/_index absent."
+                "description": "NDJSON with final newline. Only append-only index; action metadata _id is ignored and a fresh ID is generated on every insert (no overwrite or deduplication); items may fail inside HTTP 200. Maximum 4096 actions. Default dataset is first credential grant when path/_index absent."
               }
             }
           }
@@ -265,7 +265,7 @@
             "application/x-ndjson": {
               "schema": {
                 "type": "string",
-                "description": "NDJSON with final newline. Only index without _id; items may fail inside HTTP 200. Maximum 4096 actions. Default dataset is first credential grant when path/_index absent."
+                "description": "NDJSON with final newline. Only append-only index; action metadata _id is ignored and a fresh ID is generated on every insert (no overwrite or deduplication); items may fail inside HTTP 200. Maximum 4096 actions. Default dataset is first credential grant when path/_index absent."
               }
             }
           }

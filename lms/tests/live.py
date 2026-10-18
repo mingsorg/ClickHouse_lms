@@ -68,13 +68,17 @@ check(status == 200 and body["committed"] == 2, "native batch confirmed")
 status, body = call("/services/collector/event", {"event": {"message": run_id + " hec", "service": run_id}, "index": "logs"}, "Splunk", compressed=True)
 check(status == 200 and body["code"] == 0, "gzip HEC object confirmed")
 bulk = '\n'.join([
-    json.dumps({"index": {"_index": "logs"}}),
+    json.dumps({"index": {"_index": "logs", "_id": "same-external-id"}}),
     json.dumps({"message": run_id + " bulk", "service": run_id}),
-    json.dumps({"index": {"_index": "logs", "_id": "unsupported"}}),
-    json.dumps({"message": run_id + " must-not-appear", "service": run_id}),
+    json.dumps({"index": {"_index": "logs", "_id": "same-external-id"}}),
+    json.dumps({"message": run_id + " bulk-second", "service": run_id}),
+    json.dumps({"update": {"_index": "logs", "_id": "same-external-id"}}),
+    json.dumps({"doc": {"message": "unsupported"}}),
 ]) + '\n'
 status, body = call("/_bulk", bulk, "ApiKey")
-check(status == 200 and body["errors"] and body["items"][0]["index"]["status"] == 201 and body["items"][1]["index"]["status"] == 400, "Bulk partial success and explicit ID rejection")
+check(status == 200 and body["errors"] and body["items"][0]["index"]["status"] == 201 and body["items"][1]["index"]["status"] == 201 and body["items"][2]["update"]["status"] == 400, "Bulk ignores repeated external IDs and rejects update")
+bulk_ids = {body["items"][i]["index"]["_id"] for i in range(2)}
+check(len(bulk_ids) == 2 and "same-external-id" not in bulk_ids, "Bulk returns distinct generated IDs")
 status, _ = call("/services/collector/event", '{"event":"valid-prefix"}{"event":false}', "Splunk")
 check(status == 400, "malformed HEC batch rejected")
 search = {"dataset": "logs", "from": (now - timedelta(minutes=2)).isoformat(), "to": (now + timedelta(minutes=2)).isoformat(), "service": run_id, "limit": 1}
@@ -90,7 +94,8 @@ while True:
     search["cursor"] = body["next_cursor"]
     if len(seen) > 10:
         raise AssertionError("pagination failed to terminate")
-check(len(seen) == 4 and len({e["event_id"] for e in seen}) == 4, "all three protocols queryable with no pagination duplicates")
+check(len(seen) == 5 and len({e["event_id"] for e in seen}) == 5, "all three protocols queryable with no pagination duplicates")
+check({e["event_id"] for e in seen if e["protocol"] == "bulk"} == bulk_ids, "same external ID appends both rows without overwrite")
 check({e["event_time"] for e in seen if "native-" in e["message"]} == {e["@timestamp"] for e in events}, "nanosecond timestamps preserved")
 search.pop("cursor", None)
 status, body = call("/v1/logs/search", search, tenant="other")

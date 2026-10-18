@@ -12,7 +12,7 @@ Scope: the standalone Go service in `lms/`, not a modified ClickHouse engine. Fo
 | Static checks | `go vet ./...`, exit 0, no diagnostics |
 | Image build and local stack startup | Compose built the service and started it against healthy ClickHouse |
 | All three ingestion paths | Native batch, gzip HEC event and Bulk append item confirmed in real storage |
-| Protocol error behavior | Bulk partial success with explicit ID rejection; malformed HEC batch rejected; HEC ACK explicitly returns unsupported |
+| Protocol error behavior | Bulk partial success; malformed HEC batch rejected; HEC ACK explicitly returns unsupported. External-ID policy was subsequently changed as recorded below |
 | Actual query path | Paginated retrieval of all four test events, no duplicate IDs, nanosecond timestamp preservation |
 | Isolation and parameterization | Second tenant sees no first-tenant events; SQL-like literal substring remains a value |
 | Process interruption and recovery | Readiness fails and writes are not acknowledged while ClickHouse is stopped; the previously confirmed row remains queryable after restart |
@@ -28,6 +28,15 @@ The first live runs failed at query timestamp conversion and alias substitution.
 - Replication, disk/host loss, backup/restore: NOT RUN. Graceful database process stop/start is not proof of these stronger guarantees.
 - Actual Splunk/Elastic agent interoperability: NOT RUN.
 - The development data and generated credentials are synthetic/local, respectively; credentials stay in ignored `.env`.
-- Full protocol compatibility, HEC raw/ACK, Bulk ID/create semantics, aggregations, text-index acceleration and a `Native` transport are deferred.
+- Full protocol compatibility, HEC raw/ACK, Bulk overwrite/create semantics, aggregations, text-index acceleration and a `Native` transport are deferred.
 - Writes use at-least-once delivery. Timeouts may have committed data; retries can duplicate events. No exactly-once or unconditional power-loss durability claim.
 - Retention is ten days from receipt with asynchronous `TTL` cleanup; ten days of actual data/retention behavior has not been exercised.
+
+## Bulk external-ID policy update
+
+User instruction: accept and ignore action metadata `_id`; each `index` action appends a fresh event with a generated ID. Repeated external IDs do not overwrite or deduplicate. Unsupported actions and other metadata remain rejected.
+
+- PASS: fresh race/contract checks (`test_bulk_ignore_id_2026-10-18.log`, exit 0; service tests 10.691s) and vet (`test_bulk_ignore_id_vet_2026-10-18.log`, exit 0, no diagnostics). Tests cover repeated IDs within and across requests and returned/stored generated IDs.
+- PASS: real ClickHouse live checks (`test_bulk_ignore_id_live_2026-10-18.log`, exit 0). Two `index` actions with the same external ID returned distinct generated IDs and both remained queryable; the unsupported `update` item failed individually. Pagination retrieved all five accepted events without duplicate IDs.
+
+The original explicit-ID rejection above is superseded by this policy. No new throughput, latency or HA claim.

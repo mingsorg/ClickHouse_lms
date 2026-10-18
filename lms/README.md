@@ -90,9 +90,9 @@ The whole native request is validated before any write. A successful response re
 {"@timestamp":"2026-10-18T04:00:00Z","message":"bulk event","service":"api"}
 ```
 
-Only `index` without `_id` is supported. The server generates an ID. `_index` overrides the path dataset; when both are absent, the first authorized dataset is used (an intentional compatibility difference).
+Only append-only `index` is supported. An action metadata `_id` is accepted and ignored; the server generates a new ID for every event and returns that generated ID. Reusing the same `_id`, including across requests, appends another event rather than overwriting or deduplicating. This intentionally differs from Elasticsearch. `_index` overrides the path dataset; when both are absent, the first authorized dataset is used (an intentional compatibility difference).
 
-`create`, `update`, `delete`, explicit IDs, routing/version metadata, ingest pipelines, `refresh`, shard confirmation parameters and other query parameters are rejected. The service does not emulate overwrite, uniqueness or Elasticsearch indexing management. There are no mapping/template/ILM/license/version-discovery endpoints and no Elasticsearch query DSL. Some agents need these endpoints or use `create`; they are not automatically compatible.
+`create`, `update`, `delete`, routing/version metadata, ingest pipelines, `refresh`, shard confirmation parameters and other query parameters are rejected. The service does not emulate overwrite, uniqueness or Elasticsearch indexing management. There are no mapping/template/ILM/license/version-discovery endpoints and no Elasticsearch query DSL. Some agents need these endpoints or use `create`; they are not automatically compatible.
 
 Items remain in original action order. Invalid items fail individually; valid items are written together. HTTP 200 can contain `errors=true`; always inspect every item. Overall malformed NDJSON framing rejects the request before any prefix is submitted. Downstream failures mark the affected items as unconfirmed. A timeout may have committed data, so a retry can create duplicates.
 

@@ -74,9 +74,9 @@ HEC成功不自动保证exactly-once，客户端超时重试仍可能重复。
 
 支持POST /_bulk与/{dataset}/_bulk，NDJSON framing、末尾换行、action/source配对、gzip、items顺序与errors聚合；逐项保留原始序号，允许有效项成功、无效项失败。
 
-首版支持不带_id的index动作并生成ID。对带_id的index拒绝：官方语义涉及覆盖，而本产品仅追加。create动作首版明确拒绝，直到提供可持久化、跨并发且重启后仍正确的唯一性判定；不能用MergeTree排序键或异步ReplacingMergeTree冒充实时唯一约束。update/delete及版本控制、pipeline、refresh、routing、wait_for_active_shards等未实现参数明确返回不支持，不能忽略后宣称兼容。
+按用户确认的追加语义，首版支持index动作，接受但忽略动作元数据中的`_id`，每次生成新ID并返回；重复`_id`也追加新日志，不覆盖、不去重。这是明确的Elasticsearch语义差异。create动作首版明确拒绝，直到提供可持久化、跨并发且重启后仍正确的唯一性判定；不能用MergeTree排序键或异步ReplacingMergeTree冒充实时唯一约束。update/delete及版本控制、pipeline、refresh、routing、wait_for_active_shards等未实现参数明确返回不支持，不能忽略后宣称兼容。
 
-这种子集能否直接适配现有代理，必须通过其实际版本和配置验证。很多日志代理使用create或自带_id，需要在明确允许时配置成无_id的index，或者扩展正确的语义；不能保证所有Elastic Agent/Beats/Logstash无需修改即可接入。
+这种子集能否直接适配现有代理，必须通过其实际版本和配置验证。很多日志代理使用create，需要配置为index或扩展正确的语义；自带`_id`的index已可接受，但不提供该ID的覆盖/去重行为；不能保证所有Elastic Agent/Beats/Logstash无需修改即可接入。
 
 Bulk单项成功仅在约定写入确认后返回；上层HTTP 200仍可能errors=true。请求级超限、认证与整体framing错误走请求级错误；单项schema/不支持动作走item错误。对超时且提交状态不明的批次返回明确失败/不确定诊断，客户端重试可能重复，不假装已回滚。items错误信息不得泄露跨租户数据或凭据。
 

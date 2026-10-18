@@ -15,3 +15,9 @@
 - [ ] Validate replication/failure recovery and sustained retention/merge equilibrium.
 - [ ] Consider engine patches only after a measured bottleneck is established.
 - [ ] Validate the original capacity and latency target; no production claim yet.
+
+## Bulk external ID policy
+
+- [x] Accept and ignore action metadata `_id`; generate a fresh ID for every `index` action.
+- [x] Update the protocol contract, implementation plan and live checks.
+- [x] Verify repeated external IDs append independent events: contract tests cover within/across requests; real-storage tests confirm both same-ID items remain queryable.
